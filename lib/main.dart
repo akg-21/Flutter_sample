@@ -1,3 +1,4 @@
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
@@ -53,19 +54,49 @@ class _LoginPageState extends State<LoginPage> {
         }),
       );
 
+      print('Status Code: ${response.statusCode}');
+      print('Response Body: ${response.body}');
+
       if (response.statusCode == 200) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Login successful!')),
-        );
-        // You can navigate to another page here
+        // Parse the response
+        final responseData = jsonDecode(response.body);
+
+        if (responseData.containsKey('token')) {
+          final token = responseData['token'];
+
+          // Save email and token to local storage
+          final prefs = await SharedPreferences.getInstance();
+          await prefs.setString('email', username);
+          await prefs.setString('token', token);
+
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Login successful!')),
+          );
+
+          // Navigate to another page
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (context) => NextPage()),
+          );
+        } else {
+          // Token not found in response
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Login failed. Token not found.')),
+          );
+        }
       } else {
+        // Show server error message if available
+        final errorResponse = jsonDecode(response.body);
+        final errorMessage =
+            errorResponse['message'] ?? 'Login failed. Please try again.';
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Login failed. Please try again.')),
+          SnackBar(content: Text(errorMessage)),
         );
       }
     } catch (e) {
+      print('Error: $e');
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('An error occurred.')),
+        SnackBar(content: Text('An error occurred. Please try later')),
       );
     } finally {
       setState(() {
@@ -104,6 +135,16 @@ class _LoginPageState extends State<LoginPage> {
           ],
         ),
       ),
+    );
+  }
+}
+
+class NextPage extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: Text('Next Page')),
+      body: Center(child: Text('Welcome to the next page!')),
     );
   }
 }
